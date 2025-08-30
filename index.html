@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RedFox - Vercel Demo</title>
+  <style>
+    :root{--accent:#e11d48;--muted:#666}
+    body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;background:#f7f7fb;color:#111}
+    .navbar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff;border-bottom:1px solid #eee}
+    .brand{font-weight:700;color:var(--accent)}
+    .nav-actions button{margin-left:8px;padding:8px 12px;border:1px solid #ddd;background:#fff;border-radius:6px;cursor:pointer}
+    .container{max-width:980px;margin:22px auto;padding:0 16px}
+    .card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 6px 18px rgba(12,12,20,0.04);margin-bottom:16px}
+    form .row{display:flex;gap:8px;margin-bottom:8px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+    input,select,textarea{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px}
+    button.primary{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer}
+    .muted{color:var(--muted);font-size:13px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+    .small{font-size:13px}
+    .actions button{margin-right:6px}
+    .pill{display:inline-block;padding:6px 8px;border-radius:999px;border:1px solid #eee}
+    .center{text-align:center}
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <div class="brand">RedFox</div>
+    <div class="nav-actions" id="nav-actions">
+      <button onclick="navigate('#/login')">Login</button>
+      <button onclick="navigate('#/signup')">Signup</button>
+      <button onclick="navigate('#/about')">About Us</button>
+    </div>
+  </div>
+
+  <div class="container" id="app">
+    <!-- content rendered by JS -->
+  </div>
+
+<script>
+// Simple Single-file SPA with localStorage persistence
+// Data models stored in localStorage keys: rf_users, rf_sessions, rf_orders, rf_deposits, rf_withdrawals
+
+// --- helpers ---
+function uid(prefix='id'){return prefix+Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function load(key){try{return JSON.parse(localStorage.getItem(key)||'[]')}catch(e){return []}}
+function save(key,val){localStorage.setItem(key,JSON.stringify(val))}
+
+// ensure data structures
+if(!localStorage.getItem('rf_users')){
+  // create a default admin user
+  save('rf_users', [
+    {id:uid('u_'), name:'Admin', username:'admin', email:'admin@redfox.local', phone:'01700000000', password:'admin123', balance:0, role:'admin'}
+  ])
+}
+if(!localStorage.getItem('rf_orders')) save('rf_orders',[])
+if(!localStorage.getItem('rf_deposits')) save('rf_deposits',[])
+if(!localStorage.getItem('rf_withdrawals')) save('rf_withdrawals',[])
+if(!localStorage.getItem('rf_session')) localStorage.setItem('rf_session','')
+
+function currentUser(){const sid = localStorage.getItem('rf_session'); if(!sid) return null; const users = load('rf_users'); return users.find(u=>u.id===sid) || null}
+
+// navigation
+function navigate(hash){location.hash = hash}
+window.addEventListener('hashchange', render)
+
+// UI renderers
+function renderNavbar(){const appnav = document.getElementById('nav-actions'); const user = currentUser();
+  if(user){
+    appnav.innerHTML = `<span class="pill">${user.username} (${user.role||'user'})</span>
+      <button onclick="navigate('#/dashboard')">Dashboard</button>
+      <button onclick=logout()>Logout</button>`
+  }else{
+    appnav.innerHTML = `<button onclick="navigate('#/login')">Login</button>
+      <button onclick="navigate('#/signup')">Signup</button>
+      <button onclick="navigate('#/about')">About Us</button>`
+  }
+}
+
+function logout(){localStorage.setItem('rf_session',''); render()}
+
+function render(){renderNavbar(); const hash=location.hash||'#/'; const app = document.getElementById('app');
+  switch(hash){
+    case '#/': return renderHome(app);
+    case '#/about': return renderAbout(app);
+    case '#/signup': return renderSignup(app);
+    case '#/login': return renderLogin(app);
+    case '#/dashboard': return renderDashboard(app);
+    case '#/deposit': return renderDeposit(app);
+    case '#/withdraw': return renderWithdraw(app);
+    case '#/create-order': return renderCreateOrder(app);
+    case '#/admin': return renderAdmin(app);
+    default:
+      if(hash.startsWith('#/order/')) return renderOrderDetail(app, hash.split('/')[2])
+      return renderNotFound(app)
+  }
+}
+
+// -- pages --
+function renderHome(container){container.innerHTML = `
+  <div class="card">
+    <h2>স্বাগতম RedFox</h2>
+    <p class="muted">এটি একটি ডেমো সাইট — Vercel-এ দ্রুত ডেপ্লয় করার জন্য single-file SPA তৈরি করা হয়েছে।</p>
+    <p>আমাদের সাইটের উদ্দেশ্য: সহজ Deposit/Withdraw, Order Create & Dashboard demo।</p>
+  </div>
+  <div class="card">
+    <h3>শুরু করতে</h3>
+    <p><button class="primary" onclick="navigate('#/signup')">নতুন অ্যাকাউন্ট খুলুন</button> <button onclick="navigate('#/login')">Login করুন</button></p>
+  </div>
+`}
+
+function renderAbout(container){container.innerHTML = `<div class="card"><h2>About Us</h2><p class="muted">RedFox — demo platform for proxy/market workflows.</p></div>`}
+
+function renderSignup(container){container.innerHTML = `
+  <div class="card">
+    <h2>Signup</h2>
+    <form id="signup-form">
+      <div class="row"><div style="flex:1"><label>Name</label><input name="name" required></div><div style="flex:1"><label>Username</label><input name="username" required></div></div>
+      <div class="row"><div style="flex:1"><label>Email</label><input name="email" type="email" required></div><div style="flex:1"><label>Phone</label><input name="phone" required></div></div>
+      <div class="row"><div style="flex:1"><label>Password</label><input name="password" type="password" required></div><div style="flex:1"><label>Confirm Password</label><input name="confirm" type="password" required></div></div>
+      <p><button class="primary" type="submit">Signup</button></p>
+    </form>
+  </div>
+`
+  const form = container.querySelector('#signup-form'); form.addEventListener('submit', e=>{
+    e.preventDefault(); const f=new FormData(form);
+    const name=f.get('name').trim(); const username=f.get('username').trim(); const email=f.get('email').trim(); const phone=f.get('phone').trim(); const pass=f.get('password'); const confirm=f.get('confirm');
+    if(pass!==confirm){alert('Password and confirm must match'); return}
+    const users = load('rf_users'); if(users.find(u=>u.username===username)){alert('Username already exists');return}
+    const user = {id:uid('u_'), name, username, email, phone, password:pass, balance:0, role:'user'}; users.push(user); save('rf_users',users); localStorage.setItem('rf_session', user.id); alert('Signup successful'); navigate('#/dashboard')
+  })
+}
+
+function renderLogin(container){container.innerHTML = `
+  <div class="card">
+    <h2>Login</h2>
+    <form id="login-form">
+      <div class="row"><div style="flex:1"><label>Username</label><input name="username" required></div><div style="flex:1"><label>Password</label><input name="password" type="password" required></div></div>
+      <p><button class="primary" type="submit">Login</button></p>
+    </form>
+  </div>
+`
+  const form = container.querySelector('#login-form'); form.addEventListener('submit', e=>{
+    e.preventDefault(); const f = new FormData(form); const username=f.get('username').trim(); const pass=f.get('password');
+    const users = load('rf_users'); const user = users.find(u=>u.username===username && u.password===pass);
+    if(!user){alert('invalid creds');return}
+    localStorage.setItem('rf_session', user.id); alert('Login ok'); navigate('#/dashboard')
+  })
+}
+
+function renderDashboard(container){const user=currentUser(); if(!user){alert('Login required'); navigate('#/login'); return}
+  const orders = load('rf_orders').filter(o=>o.buyer===user.username || o.seller===user.username);
+  container.innerHTML = `
+    <div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h2>Dashboard</h2><div><button onclick="navigate('#/deposit')">Deposit</button> <button onclick="navigate('#/withdraw')">Withdraw</button> <button onclick="navigate('#/create-order')">Create Order</button></div></div>
+    <p class="muted">Welcome, <strong>${user.name}</strong> — Current balance: <strong>${user.balance} Tk</strong></p></div>
+    <div class="card"><h3>Your Orders</h3>
+      ${orders.length?renderOrdersTable(orders):'<p class="muted">No orders yet</p>'}
+    </div>
+  `
+}
+
+function renderOrdersTable(orders){ let rows = orders.map(o=>{
+  const status = o.status||'pending';
+  let actions = '';
+  const user = currentUser();
+  if(user && user.username===o.seller && status==='pending'){
+    actions = `<button onclick="sellerAccept('${o.id}')">Accept</button> <button onclick="sellerReject('${o.id}')">Reject</button>`
+  }
+  if(user && user.username===o.seller && status==='accepted'){
+    actions = `<button onclick="completeOrder('${o.id}')">Complete order</button> <button onclick="markFailed('${o.id}')">Mark failed</button>`
+  }
+  return `<tr><td>${o.id}</td><td>${o.orderName}</td><td>${o.price} Tk</td><td>${o.buyer}</td><td>${o.seller}</td><td>${status}</td><td class="actions">${actions} <button onclick="navigate('#/order/${o.id}')">View</button></td></tr>`
+}).join('')
+  return `<table><thead><tr><th>Order ID</th><th>Name</th><th>Price</th><th>Buyer</th><th>Seller</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table>`
+}
+
+// seller actions
+function sellerAccept(id){ const o = load('rf_orders').find(x=>x.id===id); if(!o){alert('Not found');return}
+  o.status='accepted'; saveOrders(); alert('Order accepted') ; render()
+}
+function sellerReject(id){ const arr=load('rf_orders'); const o=arr.find(x=>x.id===id); if(!o) return; o.status='rejected'; save('rf_orders',arr); alert('Order rejected'); render() }
+
+function completeOrder(id){ // require order key
+  const key = prompt('Enter seller order key to complete'); if(!key) return; const arr=load('rf_orders'); const o=arr.find(x=>x.id===id); if(!o) return; if(o.orderKey!==key){alert('wrong key');return}
+  o.status='completed'; // transfer amount to seller's balance? in this demo, buyer prepay not implemented; we simply mark
+  save('rf_orders',arr); alert('Order completed'); render()
+}
+function markFailed(id){ const key = prompt('Enter seller order key to mark failed'); if(!key) return; const arr=load('rf_orders'); const o=arr.find(x=>x.id===id); if(!o) return; if(o.orderKey!==key){alert('wrong key');return}
+  o.status='failed'; save('rf_orders',arr); alert('Marked failed'); render()
+}
+
+function saveOrders(){ /* helper placeholder */}
+
+function renderCreateOrder(container){const user=currentUser(); if(!user){alert('Login required'); navigate('#/login'); return}
+  container.innerHTML = `
+    <div class="card"><h2>Create Order</h2>
+      <form id="order-form">
+        <div class="row"><div style="flex:1"><label>Buyer username</label><input name="buyer" value="${user.username}" required></div><div style="flex:1"><label>Seller username</label><input name="seller" required></div></div>
+        <label>Order name</label><input name="orderName" required>
+        <div class="row"><div style="flex:1"><label>Price (Tk)</label><input name="price" type="number" required></div><div style="flex:1"><label>Delivery charge (optional)</label><input name="delivery"></div></div>
+        <label>Courier ID (optional)</label><input name="courier">
+        <label>Email</label><input name="email" type="email" required>
+        <label>Buyer's address</label><textarea name="address" rows="2"></textarea>
+        <label>Order description (optional)</label><textarea name="desc" rows="2"></textarea>
+        <label>Order Key (seller will use this key)</label><input name="orderKey" required>
+        <p><button class="primary" type="submit">Create Order</button></p>
+      </form>
+    </div>
+  `
+  container.querySelector('#order-form').addEventListener('submit', e=>{
+    e.preventDefault(); const f=new FormData(e.target);
+    const data = { id: uid('o_'), buyer: f.get('buyer').trim(), seller: f.get('seller').trim(), orderName: f.get('orderName').trim(), price: Number(f.get('price')||0), delivery: f.get('delivery')||'', courier: f.get('courier')||'', email: f.get('email').trim(), address: f.get('address')||'', desc: f.get('desc')||'', orderKey: f.get('orderKey'), status:'pending', createdAt:Date.now() }
+    const orders = load('rf_orders'); orders.push(data); save('rf_orders',orders); alert('Order created and sent'); navigate('#/dashboard')
+  })
+}
+
+function renderOrderDetail(container, id){ const orders=load('rf_orders'); const o=orders.find(x=>x.id===id); if(!o){container.innerHTML='<div class="card"><h3>Order not found</h3></div>'; return}
+  container.innerHTML = `<div class="card"><h2>Order ${o.id}</h2>
+    <p><strong>${o.orderName}</strong> — ${o.price} Tk — status: <span class="pill">${o.status}</span></p>
+    <p><strong>Buyer:</strong> ${o.buyer} <strong>Seller:</strong> ${o.seller}</p>
+    <p><strong>Delivery charge:</strong> ${o.delivery || '-'} <strong>Courier:</strong> ${o.courier || '-'}</p>
+    <p><strong>Email:</strong> ${o.email}</p>
+    <p><strong>Address:</strong> ${o.address || '-'}</p>
+    <p><strong>Description:</strong> ${o.desc || '-'}</p>
+    <p><button onclick="navigate('#/dashboard')">Back</button></p>
+  </div>`
+}
+
+function renderDeposit(container){ const user=currentUser(); if(!user){alert('Login required'); navigate('#/login'); return}
+  container.innerHTML = `
+    <div class="card"><h2>Deposit</h2>
+      <p class="muted">Send money to: <strong>01916681375</strong> and put the TRX ID below. Minimum 30 Tk.</p>
+      <form id="deposit-form">
+        <label>Amount (Tk)</label><input name="amount" type="
+S
